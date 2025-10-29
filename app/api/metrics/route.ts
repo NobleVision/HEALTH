@@ -11,8 +11,8 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await query(
-      `SELECT id, user_id, metric_type, value, unit, timestamp, created_at 
-       FROM health_metrics 
+      `SELECT id, user_id, metric_type, value, unit, composite_data, timestamp, created_at
+       FROM health_metrics
        WHERE user_id = $1 AND timestamp > NOW() - INTERVAL '${days} days'
        ORDER BY timestamp DESC`,
       [userId]
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, metricType, value, unit } = await request.json();
+    const { userId, metricType, value, unit, compositeData } = await request.json();
 
     if (!userId || !metricType || value === undefined) {
       return NextResponse.json(
@@ -36,10 +36,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Handle blood pressure composite data
+    if (metricType === 'Blood Pressure' && compositeData) {
+      const result = await query(
+        `INSERT INTO health_metrics (user_id, metric_type, value, unit, composite_data, timestamp)
+         VALUES ($1, $2, $3, $4, $5, NOW())
+         RETURNING id, user_id, metric_type, value, unit, composite_data, timestamp`,
+        [userId, metricType, compositeData.systolic, unit || 'mmHg', JSON.stringify(compositeData)]
+      );
+      return NextResponse.json(result.rows[0], { status: 201 });
+    }
+
+    // Handle regular metrics
     const result = await query(
-      `INSERT INTO health_metrics (user_id, metric_type, value, unit, timestamp) 
-       VALUES ($1, $2, $3, $4, NOW()) 
-       RETURNING id, user_id, metric_type, value, unit, timestamp`,
+      `INSERT INTO health_metrics (user_id, metric_type, value, unit, timestamp)
+       VALUES ($1, $2, $3, $4, NOW())
+       RETURNING id, user_id, metric_type, value, unit, composite_data, timestamp`,
       [userId, metricType, value, unit || null]
     );
 

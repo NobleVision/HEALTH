@@ -41,6 +41,7 @@ export async function initializeDatabase() {
         metric_type VARCHAR(50) NOT NULL,
         value DECIMAL(10, 2) NOT NULL,
         unit VARCHAR(20),
+        composite_data JSONB,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -49,7 +50,7 @@ export async function initializeDatabase() {
 
     // Create index for faster queries
     await query(`
-      CREATE INDEX IF NOT EXISTS idx_health_metrics_user_id_timestamp 
+      CREATE INDEX IF NOT EXISTS idx_health_metrics_user_id_timestamp
       ON health_metrics(user_id, timestamp DESC);
     `);
 

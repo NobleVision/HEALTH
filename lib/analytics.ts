@@ -1,9 +1,16 @@
+export interface BloodPressureData {
+  systolic: number;
+  diastolic: number;
+  pulse?: number;
+}
+
 export interface HealthMetric {
   id: number;
   user_id: number;
   metric_type: string;
   value: number;
   unit: string | null;
+  composite_data?: BloodPressureData | null;
   timestamp: string;
 }
 
@@ -118,5 +125,43 @@ export function getHealthSummary(analysis: MetricAnalysis[]): string {
   const declining = analysis.filter((a) => a.trend === 'declining').length;
 
   return `You're tracking ${analysis.length} metrics. ${improving} are improving, ${declining} are declining.`;
+}
+
+/**
+ * Format blood pressure data for display
+ * Handles both legacy single values and new composite data
+ */
+export function formatBloodPressure(metric: HealthMetric): string {
+  if (metric.composite_data) {
+    const bp = metric.composite_data;
+    if (bp.pulse) {
+      return `${bp.systolic}/${bp.diastolic} mmHg (${bp.pulse} bpm)`;
+    }
+    return `${bp.systolic}/${bp.diastolic} mmHg`;
+  }
+  // Legacy format: single value (assume it's systolic)
+  return `${metric.value} mmHg`;
+}
+
+/**
+ * Get systolic value from blood pressure metric
+ */
+export function getBloodPressureSystolic(metric: HealthMetric): number {
+  if (metric.composite_data) {
+    return metric.composite_data.systolic;
+  }
+  // Legacy: assume single value is systolic
+  return metric.value;
+}
+
+/**
+ * Get diastolic value from blood pressure metric
+ */
+export function getBloodPressureDiastolic(metric: HealthMetric): number | null {
+  if (metric.composite_data) {
+    return metric.composite_data.diastolic;
+  }
+  // Legacy: no diastolic value
+  return null;
 }
 

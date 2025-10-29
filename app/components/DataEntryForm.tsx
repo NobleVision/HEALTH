@@ -8,14 +8,19 @@ interface MetricInput {
   unit: string;
 }
 
+interface BloodPressureInput {
+  systolic: string;
+  diastolic: string;
+  pulse: string;
+}
+
 interface DataEntryFormProps {
   userId: number;
   onSuccess: () => void;
 }
 
 const METRIC_TEMPLATES = [
-  { type: 'Blood Pressure Systolic', unit: 'mmHg', placeholder: '120' },
-  { type: 'Blood Pressure Diastolic', unit: 'mmHg', placeholder: '80' },
+  { type: 'Blood Pressure', unit: 'mmHg', placeholder: '120/80' },
   { type: 'Weight', unit: 'lbs', placeholder: '180' },
   { type: 'Steps', unit: 'steps', placeholder: '8000' },
   { type: 'Heart Rate', unit: 'bpm', placeholder: '72' },
@@ -27,10 +32,14 @@ const METRIC_TEMPLATES = [
 
 export default function DataEntryForm({ userId, onSuccess }: DataEntryFormProps) {
   const [metrics, setMetrics] = useState<MetricInput[]>([
-    { type: 'Blood Pressure Systolic', value: '', unit: 'mmHg' },
     { type: 'Weight', value: '', unit: 'lbs' },
     { type: 'Steps', value: '', unit: 'steps' },
   ]);
+  const [bloodPressure, setBloodPressure] = useState<BloodPressureInput>({
+    systolic: '',
+    diastolic: '',
+    pulse: '',
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -39,6 +48,13 @@ export default function DataEntryForm({ userId, onSuccess }: DataEntryFormProps)
     const newMetrics = [...metrics];
     newMetrics[index].value = value;
     setMetrics(newMetrics);
+  };
+
+  const handleBloodPressureChange = (field: keyof BloodPressureInput, value: string) => {
+    setBloodPressure((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
   };
 
   const handleAddMetric = () => {
@@ -57,13 +73,41 @@ export default function DataEntryForm({ userId, onSuccess }: DataEntryFormProps)
 
     try {
       const filledMetrics = metrics.filter((m) => m.value.trim());
+      const hasBP = bloodPressure.systolic.trim() && bloodPressure.diastolic.trim();
 
-      if (filledMetrics.length === 0) {
+      if (filledMetrics.length === 0 && !hasBP) {
         setError('Please enter at least one metric');
         setLoading(false);
         return;
       }
 
+      let savedCount = 0;
+
+      // Save blood pressure if provided
+      if (hasBP) {
+        const response = await fetch('/api/metrics', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            metricType: 'Blood Pressure',
+            value: parseInt(bloodPressure.systolic),
+            unit: 'mmHg',
+            compositeData: {
+              systolic: parseInt(bloodPressure.systolic),
+              diastolic: parseInt(bloodPressure.diastolic),
+              pulse: bloodPressure.pulse ? parseInt(bloodPressure.pulse) : undefined,
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save blood pressure');
+        }
+        savedCount++;
+      }
+
+      // Save other metrics
       for (const metric of filledMetrics) {
         const response = await fetch('/api/metrics', {
           method: 'POST',
@@ -79,14 +123,15 @@ export default function DataEntryForm({ userId, onSuccess }: DataEntryFormProps)
         if (!response.ok) {
           throw new Error(`Failed to save ${metric.type}`);
         }
+        savedCount++;
       }
 
-      setSuccess(`Successfully saved ${filledMetrics.length} metric(s)!`);
+      setSuccess(`Successfully saved ${savedCount} metric(s)!`);
       setMetrics([
-        { type: 'Blood Pressure Systolic', value: '', unit: 'mmHg' },
         { type: 'Weight', value: '', unit: 'lbs' },
         { type: 'Steps', value: '', unit: 'steps' },
       ]);
+      setBloodPressure({ systolic: '', diastolic: '', pulse: '' });
       onSuccess();
     } catch (err: any) {
       setError(err.message || 'Failed to save metrics');
@@ -112,6 +157,73 @@ export default function DataEntryForm({ userId, onSuccess }: DataEntryFormProps)
       )}
 
       <div className="space-y-4 mb-6">
+        {/* Blood Pressure Section */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            💉 Blood Pressure
+          </label>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Systolic
+              </label>
+              <div className="flex gap-1">
+                <input
+                  type="number"
+                  min="0"
+                  max="300"
+                  value={bloodPressure.systolic}
+                  onChange={(e) => handleBloodPressureChange('systolic', e.target.value)}
+                  placeholder="120"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
+                />
+                <span className="px-2 py-2 bg-white rounded-lg text-gray-600 text-sm font-medium">
+                  mmHg
+                </span>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Diastolic
+              </label>
+              <div className="flex gap-1">
+                <input
+                  type="number"
+                  min="0"
+                  max="200"
+                  value={bloodPressure.diastolic}
+                  onChange={(e) => handleBloodPressureChange('diastolic', e.target.value)}
+                  placeholder="80"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
+                />
+                <span className="px-2 py-2 bg-white rounded-lg text-gray-600 text-sm font-medium">
+                  mmHg
+                </span>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Pulse (optional)
+              </label>
+              <div className="flex gap-1">
+                <input
+                  type="number"
+                  min="0"
+                  max="300"
+                  value={bloodPressure.pulse}
+                  onChange={(e) => handleBloodPressureChange('pulse', e.target.value)}
+                  placeholder="72"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
+                />
+                <span className="px-2 py-2 bg-white rounded-lg text-gray-600 text-sm font-medium">
+                  bpm
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Other Metrics */}
         {metrics.map((metric, index) => (
           <div key={index} className="flex gap-3 items-end">
             <div className="flex-1">

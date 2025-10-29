@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { HealthMetric, MetricAnalysis, analyzeMetrics, getTrendData } from '@/lib/analytics';
+import { HealthMetric, MetricAnalysis, analyzeMetrics, getTrendData, formatBloodPressure, getBloodPressureSystolic } from '@/lib/analytics';
 
 interface DashboardProps {
   userId: number;
@@ -65,43 +65,53 @@ export default function Dashboard({ userId, refreshTrigger }: DashboardProps) {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {analysis.map((metric) => (
-          <div key={metric.metricType} className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">{metric.metricType}</h3>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Current:</span>
-                <span className="font-bold text-indigo-600">
-                  {metric.current} {metric.unit}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Average:</span>
-                <span className="text-gray-800">{metric.average} {metric.unit}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Range:</span>
-                <span className="text-gray-800">
-                  {metric.min} - {metric.max} {metric.unit}
-                </span>
-              </div>
-              <div className="flex justify-between items-center pt-2 border-t">
-                <span className="text-gray-600">Trend:</span>
-                <span
-                  className={`font-semibold px-3 py-1 rounded-full text-sm ${
-                    metric.trend === 'improving'
-                      ? 'bg-green-100 text-green-800'
-                      : metric.trend === 'declining'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  {metric.trend === 'improving' ? '📈 Improving' : metric.trend === 'declining' ? '📉 Declining' : '➡️ Stable'}
-                </span>
+        {analysis.map((metric) => {
+          // Get the most recent metric for blood pressure formatting
+          const recentMetric = metrics.find((m) => m.metric_type === metric.metricType);
+          const isBloodPressure = metric.metricType === 'Blood Pressure';
+
+          return (
+            <div key={metric.metricType} className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">{metric.metricType}</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Current:</span>
+                  <span className="font-bold text-indigo-600">
+                    {isBloodPressure && recentMetric
+                      ? formatBloodPressure(recentMetric)
+                      : `${metric.current} ${metric.unit}`}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Average:</span>
+                  <span className="text-gray-800">
+                    {isBloodPressure ? `${metric.average} ${metric.unit}` : `${metric.average} ${metric.unit}`}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Range:</span>
+                  <span className="text-gray-800">
+                    {metric.min} - {metric.max} {metric.unit}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t">
+                  <span className="text-gray-600">Trend:</span>
+                  <span
+                    className={`font-semibold px-3 py-1 rounded-full text-sm ${
+                      metric.trend === 'improving'
+                        ? 'bg-green-100 text-green-800'
+                        : metric.trend === 'declining'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-gray-100 text-gray-800'
+                    }`}
+                  >
+                    {metric.trend === 'improving' ? '📈 Improving' : metric.trend === 'declining' ? '📉 Declining' : '➡️ Stable'}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Charts */}

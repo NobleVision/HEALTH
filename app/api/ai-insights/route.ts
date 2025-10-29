@@ -16,8 +16,8 @@ export async function POST(request: NextRequest) {
 
     // Fetch recent metrics
     const result = await query(
-      `SELECT metric_type, value, unit, timestamp 
-       FROM health_metrics 
+      `SELECT metric_type, value, unit, composite_data, timestamp
+       FROM health_metrics
        WHERE user_id = $1 AND timestamp > NOW() - INTERVAL '30 days'
        ORDER BY timestamp DESC
        LIMIT 100`,
