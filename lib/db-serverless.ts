@@ -1,7 +1,7 @@
 /**
  * Serverless-optimized database module for Vercel deployment
  * Uses Neon serverless driver instead of pg Pool
- * 
+ *
  * Key differences from lib/db.ts:
  * - No global connection pool (incompatible with serverless)
  * - Per-request connections with automatic cleanup
@@ -10,11 +10,20 @@
  * - Automatic retry logic
  */
 
-import { sql } from '@neondatabase/serverless';
+import { Pool } from '@neondatabase/serverless';
 
 // Configuration
 const DB_TIMEOUT = parseInt(process.env.DATABASE_TIMEOUT || '10000');
 const MAX_RETRIES = parseInt(process.env.DATABASE_MAX_RETRIES || '3');
+
+// Create a serverless-optimized pool
+const pool = new Pool({
+  connectionString: process.env.POSTGRES_URL,
+  // Serverless-specific configuration
+  max: 1, // Single connection per function invocation
+  idleTimeoutMillis: 0, // Close idle connections immediately
+  connectionTimeoutMillis: 5000,
+});
 
 /**
  * Execute a database query with timeout and retry logic
@@ -37,7 +46,7 @@ export async function query(text: string, params?: any[]) {
       );
 
       // Execute query with timeout
-      const queryPromise = sql(text, params);
+      const queryPromise = pool.query(text, params);
       const result = await Promise.race([queryPromise, timeoutPromise]);
 
       const duration = Date.now() - start;
