@@ -127,6 +127,12 @@ export async function initializeDatabase() {
       );
     `);
 
+    // Add composite_data column if it doesn't exist (migration for existing tables)
+    await query(`
+      ALTER TABLE health_metrics
+      ADD COLUMN IF NOT EXISTS composite_data JSONB;
+    `);
+
     // Create index for faster queries
     await query(`
       CREATE INDEX IF NOT EXISTS idx_health_metrics_user_id_timestamp
