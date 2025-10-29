@@ -26,12 +26,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load user from localStorage
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    refreshUsers();
+    // Initialize database on first load
+    const initializeApp = async () => {
+      try {
+        // Call database initialization endpoint
+        const initResponse = await fetch('/api/init');
+        if (!initResponse.ok) {
+          console.warn('Database initialization returned non-200 status:', initResponse.status);
+        } else {
+          console.log('Database initialized successfully');
+        }
+      } catch (error) {
+        console.warn('Database initialization failed (may already be initialized):', error);
+      }
+
+      // Load user from localStorage
+      const savedUser = localStorage.getItem('currentUser');
+      if (savedUser) {
+        setUser(JSON.parse(savedUser));
+      }
+
+      // Fetch users
+      await refreshUsers();
+    };
+
+    initializeApp();
   }, []);
 
   const refreshUsers = async () => {
